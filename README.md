@@ -1,3 +1,9 @@
+# Integrantes
+
+- Arthur Bueno de Oliveira - RM 558396
+- João Vitor Carotta Ribeiro - RM 555187
+- Victor Magdaleno Marcos - RM 556729
+
 # Fordiq
 
 Plataforma de Inteligência Competitiva Automotiva desenvolvida para o desafio da Ford, no contexto acadêmico da FIAP.
@@ -258,7 +264,3 @@ Critérios atendidos:
 - Campos ausentes retornam `null` explicitamente
 - Dados claros, organizados e comparáveis, com fonte rastreável
 - Validação com Ford Ranger Raptor
-
-## Time
-
-Desenvolvido por estudantes da FIAP como resposta ao desafio da Ford — Inteligência Competitiva Automotiva.
