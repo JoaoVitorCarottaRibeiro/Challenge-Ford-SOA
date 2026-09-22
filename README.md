@@ -267,4 +267,5 @@ Critérios atendidos:
 
 # Diagrama
 
-<img width="1600" height="1455" alt="image" src="https://github.com/user-attachments/assets/2baecfe8-a445-4e45-8c68-85fbb54f9b69" />
+<img width="1170" height="976" alt="image" src="https://github.com/user-attachments/assets/dac94518-6825-4829-a53b-51a2247ba1aa" />
+
