@@ -264,3 +264,7 @@ Critérios atendidos:
 - Campos ausentes retornam `null` explicitamente
 - Dados claros, organizados e comparáveis, com fonte rastreável
 - Validação com Ford Ranger Raptor
+
+# Diagrama
+
+<img width="1600" height="1455" alt="image" src="https://github.com/user-attachments/assets/2baecfe8-a445-4e45-8c68-85fbb54f9b69" />
