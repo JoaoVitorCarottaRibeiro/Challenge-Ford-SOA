@@ -1,109 +1,124 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import {
-  View, Text, ScrollView, StyleSheet,
-  TouchableOpacity, ActivityIndicator, Alert
+  View, Text, ScrollView, StyleSheet, TextInput,
+  TouchableOpacity, ActivityIndicator, Alert, Platform
 } from 'react-native'
-import { Sparkles, Search, ChevronDown } from 'lucide-react-native'
+import { Search, UploadCloud, FileText, X, ChevronDown } from 'lucide-react-native'
+import * as DocumentPicker from 'expo-document-picker'
+import * as FileSystem from 'expo-file-system'
 import api from '@/services/api'
 import SpecReport from '@/components/SpecReport'
+import { BrandBadge } from '@/components/BrandBadge'
 import { HERO_FIELDS, SOURCE_LABEL, formatSpecValue } from '@/constants/specCategories'
+import { useTheme, ThemeColors } from '@/contexts/ThemeContext'
 
 interface ExtractResult {
-  source: 'db_cache' | 'pdf_oficial' | 'web_scraping' | 'ia_generated'
+  source: 'db_cache' | 'pdf_oficial' | 'pdf_upload' | 'web_scraping' | 'ia_generated'
   vehicle: { id: string; brand: string; model: string; version: string; yearModel: number }
   spec: Record<string, unknown> & { pdfSourceFile?: string | null }
 }
 
-const VEHICLE_OPTIONS: Record<string, Record<string, string[]>> = {
-  Toyota:     { Hilux:       ['SRX', 'SR', 'GR Sport', 'Conquest'] },
-  Ford:       { Ranger:      ['Raptor', 'Storm', 'XLS', 'XLT', 'Limited'] },
-  Volkswagen: { Amarok:      ['Highline V6', 'Extreme', 'Comfortline', 'Trendline'] },
-  Chevrolet:  { S10:         ['High Country', 'LTZ', 'LT', 'LS'] },
-  Mitsubishi: { 'L200 Triton': ['Katana', 'HPE-S', 'HPE', 'Sport'] },
-  RAM:        { Rampage:     ['R/T', 'Laramie', 'Rebel', 'Tungsten'] },
+interface PdfFile {
+  uri: string
+  name: string
+  size: number
+  file?: File
 }
 
-const YEARS = Array.from({ length: 27 }, (_, i) => String(2026 - i))
+const MAX_PDF_MB = 15
+const CURRENT_YEAR = new Date().getFullYear()
+const YEARS = Array.from({ length: 27 }, (_, i) => String(CURRENT_YEAR - i))
 
-type PickerType = 'brand' | 'model' | 'version' | 'year' | null
+async function pdfToBase64(pdf: PdfFile): Promise<string> {
+  if (Platform.OS === 'web' && pdf.file) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader()
+      reader.onload = () => resolve(String(reader.result).split(',')[1] ?? '')
+      reader.onerror = reject
+      reader.readAsDataURL(pdf.file as File)
+    })
+  }
+  return FileSystem.readAsStringAsync(pdf.uri, { encoding: FileSystem.EncodingType.Base64 })
+}
 
 export default function ExtractScreen() {
+  const { colors } = useTheme()
+  const styles = useMemo(() => makeStyles(colors), [colors])
+
   const [brand,   setBrand]   = useState('')
   const [model,   setModel]   = useState('')
   const [version, setVersion] = useState('')
-  const [year,    setYear]    = useState('2025')
+  const [year,    setYear]    = useState(String(CURRENT_YEAR))
+  const [pickingYear, setPickingYear] = useState(false)
+  const [pdfFile, setPdfFile] = useState<PdfFile | null>(null)
+  const [pdfError, setPdfError] = useState('')
   const [loading, setLoading] = useState(false)
+  const [error,   setError]   = useState('')
   const [result,  setResult]  = useState<ExtractResult | null>(null)
-  const [picking, setPicking] = useState<PickerType>(null)
 
-  const brands  = Object.keys(VEHICLE_OPTIONS)
-  const models  = brand  ? Object.keys(VEHICLE_OPTIONS[brand] || {}) : []
-  const versions = model ? VEHICLE_OPTIONS[brand]?.[model] || [] : []
+  async function handlePickPdf() {
+    setPdfError('')
+    const res = await DocumentPicker.getDocumentAsync({ type: 'application/pdf' })
+    if (res.canceled || !res.assets?.[0]) return
+    const asset = res.assets[0]
+    if (asset.size && asset.size > MAX_PDF_MB * 1024 * 1024) {
+      setPdfError(`O arquivo excede ${MAX_PDF_MB}MB.`)
+      return
+    }
+    setPdfFile({ uri: asset.uri, name: asset.name, size: asset.size ?? 0, file: (asset as any).file })
+  }
 
-  function selectOption(type: PickerType, value: string) {
-    if (type === 'brand')   { setBrand(value); setModel(''); setVersion('') }
-    if (type === 'model')   { setModel(value); setVersion('') }
-    if (type === 'version') { setVersion(value) }
-    if (type === 'year')    { setYear(value) }
-    setPicking(null)
+  function handleRemovePdf() {
+    setPdfFile(null)
+    setPdfError('')
   }
 
   async function handleExtract() {
-    if (!brand || !model || !version || !year) {
-      Alert.alert('Campos obrigatórios', 'Selecione marca, modelo, versão e ano.')
+    if (!brand.trim() || !model.trim() || !version.trim()) {
+      Alert.alert('Campos obrigatórios', 'Preencha marca, modelo e versão.')
       return
     }
-    setLoading(true)
+    setError('')
     setResult(null)
+    setLoading(true)
     try {
-      const { data } = await api.post('/extract', {
-        brand, model, version, yearModel: parseInt(year)
-      })
+      const body: Record<string, unknown> = {
+        brand: brand.trim(), model: model.trim(), version: version.trim(),
+        yearModel: Number(year),
+      }
+      if (pdfFile) {
+        body.pdfBase64 = await pdfToBase64(pdfFile)
+        body.pdfFileName = pdfFile.name
+      }
+      const { data } = await api.post('/extract', body)
       setResult(data)
     } catch (err: any) {
-      const msg = err?.response?.data?.message || 'Erro ao extrair especificações.'
-      Alert.alert('Erro', msg)
+      setError(err?.response?.data?.message || 'Erro ao extrair especificações.')
     } finally {
       setLoading(false)
     }
   }
 
-  function handleClear() {
-    setBrand(''); setModel(''); setVersion(''); setYear('2025'); setResult(null)
+  function handleNewSearch() {
+    setBrand(''); setModel(''); setVersion(''); setYear(String(CURRENT_YEAR))
+    setPdfFile(null); setPdfError(''); setResult(null); setError('')
   }
 
-  if (picking) {
-    const options =
-      picking === 'brand'   ? brands :
-      picking === 'model'   ? models :
-      picking === 'version' ? versions :
-      YEARS
-
-    const label =
-      picking === 'brand'   ? 'Selecione a Marca' :
-      picking === 'model'   ? 'Selecione o Modelo' :
-      picking === 'version' ? 'Selecione a Versão' :
-      'Selecione o Ano'
-
+  if (pickingYear) {
     return (
       <View style={styles.container}>
         <View style={[styles.content, { flex: 1 }]}>
-          <TouchableOpacity onPress={() => setPicking(null)} style={styles.backBtn}>
+          <TouchableOpacity onPress={() => setPickingYear(false)} style={styles.backBtn}>
             <Text style={styles.backText}>← Cancelar</Text>
           </TouchableOpacity>
-          <Text style={styles.pageTitle}>{label}</Text>
+          <Text style={styles.pageTitle}>Selecione o ano</Text>
           <ScrollView style={{ flex: 1 }}>
-            {options.map(opt => (
+            {YEARS.map(y => (
               <TouchableOpacity
-                key={opt}
-                style={[
-                  styles.optionCard,
-                  (picking === 'brand' ? brand :
-                   picking === 'model' ? model :
-                   picking === 'version' ? version : year) === opt && styles.optionCardSelected
-                ]}
-                onPress={() => selectOption(picking, opt)}>
-                <Text style={styles.optionText}>{opt}</Text>
+                key={y}
+                style={[styles.optionCard, year === y && styles.optionCardSelected]}
+                onPress={() => { setYear(y); setPickingYear(false) }}>
+                <Text style={styles.optionText}>{y}</Text>
               </TouchableOpacity>
             ))}
           </ScrollView>
@@ -116,61 +131,56 @@ export default function ExtractScreen() {
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      <View style={styles.header}>
-        <View style={[styles.iconBox, { backgroundColor: '#8b5cf620' }]}>
-          <Sparkles color="#8b5cf6" size={22} />
-        </View>
-        <View>
-          <Text style={styles.pageTitle}>Extrair Specs</Text>
-          <Text style={styles.pageSub}>Powered by Claude AI</Text>
-        </View>
-      </View>
+      <Text style={styles.pageTitle}>Extrair Specs</Text>
 
       <View style={styles.form}>
         <View style={styles.inputGroup}>
           <Text style={styles.inputLabel}>Marca</Text>
-          <TouchableOpacity
-            style={styles.selector}
-            onPress={() => setPicking('brand')}>
-            <Text style={[styles.selectorText, !brand && styles.placeholder]}>
-              {brand || 'Selecione a marca'}
-            </Text>
-            <ChevronDown color="#6b7280" size={16} />
-          </TouchableOpacity>
+          <TextInput style={styles.textInput} value={brand} onChangeText={setBrand}
+            placeholder="Ex: Ford" placeholderTextColor={colors.muted} />
         </View>
 
         <View style={styles.inputGroup}>
           <Text style={styles.inputLabel}>Modelo</Text>
-          <TouchableOpacity
-            style={[styles.selector, !brand && styles.selectorDisabled]}
-            onPress={() => brand && setPicking('model')}>
-            <Text style={[styles.selectorText, !model && styles.placeholder]}>
-              {model || 'Selecione o modelo'}
-            </Text>
-            <ChevronDown color="#6b7280" size={16} />
-          </TouchableOpacity>
+          <TextInput style={styles.textInput} value={model} onChangeText={setModel}
+            placeholder="Ex: Ranger" placeholderTextColor={colors.muted} />
         </View>
 
         <View style={styles.inputGroup}>
           <Text style={styles.inputLabel}>Versão</Text>
-          <TouchableOpacity
-            style={[styles.selector, !model && styles.selectorDisabled]}
-            onPress={() => model && setPicking('version')}>
-            <Text style={[styles.selectorText, !version && styles.placeholder]}>
-              {version || 'Selecione a versão'}
-            </Text>
-            <ChevronDown color="#6b7280" size={16} />
-          </TouchableOpacity>
+          <TextInput style={styles.textInput} value={version} onChangeText={setVersion}
+            placeholder="Ex: Raptor" placeholderTextColor={colors.muted} />
         </View>
 
         <View style={styles.inputGroup}>
           <Text style={styles.inputLabel}>Ano</Text>
-          <TouchableOpacity
-            style={styles.selector}
-            onPress={() => setPicking('year')}>
+          <TouchableOpacity style={styles.selector} onPress={() => setPickingYear(true)}>
             <Text style={styles.selectorText}>{year}</Text>
-            <ChevronDown color="#6b7280" size={16} />
+            <ChevronDown color={colors.muted} size={16} />
           </TouchableOpacity>
+        </View>
+
+        <View style={styles.inputGroup}>
+          <Text style={styles.inputLabel}>Ficha técnica em PDF (opcional)</Text>
+          <TouchableOpacity style={styles.dropzone} onPress={handlePickPdf}>
+            {pdfFile ? (
+              <>
+                <FileText color={colors.primary} size={24} />
+                <Text style={styles.dropzoneTitle}>{pdfFile.name}</Text>
+                <TouchableOpacity onPress={handleRemovePdf} style={styles.removeFileBtn}>
+                  <X color={colors.muted} size={12} />
+                  <Text style={styles.removeFileText}>Remover arquivo</Text>
+                </TouchableOpacity>
+              </>
+            ) : (
+              <>
+                <UploadCloud color={colors.muted} size={24} />
+                <Text style={styles.dropzoneTitle}>Selecionar ficha técnica</Text>
+                <Text style={styles.dropzoneSub}>PDF até {MAX_PDF_MB}MB</Text>
+              </>
+            )}
+          </TouchableOpacity>
+          {pdfError ? <Text style={styles.pdfErrorText}>{pdfError}</Text> : null}
         </View>
 
         <TouchableOpacity
@@ -179,31 +189,38 @@ export default function ExtractScreen() {
           disabled={loading}
           activeOpacity={0.8}>
           {loading
-            ? <ActivityIndicator color="#fff" size="small" />
-            : <><Search color="#fff" size={18} /><Text style={styles.btnText}>Buscar Especificações</Text></>
+            ? <ActivityIndicator color={colors.primaryForeground} size="small" />
+            : <><Search color={colors.primaryForeground} size={18} /><Text style={styles.btnText}>Buscar Especificações</Text></>
           }
         </TouchableOpacity>
 
         {loading && (
-          <Text style={styles.loadingHint}>Consultando banco e agente de IA...</Text>
+          <Text style={styles.loadingHint}>
+            {pdfFile ? 'Extraindo especificações do PDF...' : 'Consultando banco e agente de IA...'}
+          </Text>
         )}
+
+        {error ? <Text style={styles.errorText}>{error}</Text> : null}
       </View>
 
-      {result && (
+      {result ? (
         <View style={styles.resultContainer}>
+          <View style={styles.resultHeader}>
+            <BrandBadge brand={result.vehicle.brand} size={48} />
+            <View style={{ flex: 1 }}>
+              <Text style={styles.vehicleBrand}>{result.vehicle.brand}</Text>
+              <Text style={styles.vehicleName}>{result.vehicle.model} {result.vehicle.version}</Text>
+              <Text style={styles.vehicleYear}>{result.vehicle.yearModel}</Text>
+            </View>
+          </View>
+
           {sourceInfo && (
             <View style={[styles.sourceBadge, { backgroundColor: `${sourceInfo.color}20`, borderColor: sourceInfo.color }]}>
-              <Text style={[styles.sourceText, { color: sourceInfo.color }]}>{sourceInfo.text}</Text>
+              <Text style={[styles.sourceText, { color: sourceInfo.color }]}>
+                {sourceInfo.text}{result.spec?.pdfSourceFile ? ` · ${String(result.spec.pdfSourceFile)}` : ''}
+              </Text>
             </View>
           )}
-
-          <Text style={styles.vehicleName}>
-            {result.vehicle.brand} {result.vehicle.model} {result.vehicle.version}
-          </Text>
-          <Text style={styles.vehicleYear}>{result.vehicle.yearModel}</Text>
-          {result.spec?.pdfSourceFile ? (
-            <Text style={styles.pdfSourceText}>Ficha: {String(result.spec.pdfSourceFile)}</Text>
-          ) : null}
 
           <View style={styles.specsGrid}>
             {HERO_FIELDS.map(field => {
@@ -221,74 +238,99 @@ export default function ExtractScreen() {
           <Text style={styles.reportTitle}>Relatório completo</Text>
           <SpecReport spec={result.spec} />
 
-          <TouchableOpacity style={styles.clearBtn} onPress={handleClear}>
+          <TouchableOpacity style={styles.clearBtn} onPress={handleNewSearch}>
             <Text style={styles.clearText}>Fazer nova busca</Text>
           </TouchableOpacity>
         </View>
-      )}
+      ) : !loading ? (
+        <View style={styles.placeholder}>
+          <Text style={styles.placeholderText}>As especificações extraídas vão aparecer aqui.</Text>
+        </View>
+      ) : null}
     </ScrollView>
   )
 }
 
-const styles = StyleSheet.create({
-  container:    { flex: 1, backgroundColor: '#0a0f1e' },
-  content:      { padding: 20, paddingTop: 60, paddingBottom: 40 },
-  header:       { flexDirection: 'row', alignItems: 'center', gap: 14, marginBottom: 28 },
-  iconBox:      { width: 48, height: 48, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
-  pageTitle:    { fontSize: 22, fontWeight: 'bold', color: '#f5f5f5' },
-  pageSub:      { fontSize: 12, color: '#6b7280', marginTop: 2 },
-  form: {
-    backgroundColor: '#111827', borderRadius: 16,
-    padding: 20, borderWidth: 1, borderColor: '#1f2937',
-    marginBottom: 24, gap: 16
-  },
-  inputGroup:   { gap: 6 },
-  inputLabel:   { fontSize: 12, fontWeight: '600', color: '#9ca3af', textTransform: 'uppercase', letterSpacing: 0.5 },
-  selector: {
-    backgroundColor: '#0a0f1e', borderRadius: 10,
-    borderWidth: 1, borderColor: '#1f2937',
-    paddingHorizontal: 14, paddingVertical: 14,
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between'
-  },
-  selectorDisabled: { opacity: 0.4 },
-  selectorText: { color: '#f5f5f5', fontSize: 15 },
-  placeholder:  { color: '#4b5563' },
-  btn: {
-    backgroundColor: '#8b5cf6', borderRadius: 12,
-    paddingVertical: 14, flexDirection: 'row',
-    alignItems: 'center', justifyContent: 'center', gap: 8, marginTop: 4
-  },
-  btnDisabled:  { opacity: 0.6 },
-  btnText:      { color: '#fff', fontSize: 15, fontWeight: '700' },
-  loadingHint:  { textAlign: 'center', color: '#6b7280', fontSize: 12, marginTop: -8 },
-  backBtn:      { marginBottom: 20 },
-  backText:     { color: '#3b82f6', fontSize: 16, fontWeight: '600' },
-  optionCard: {
-    backgroundColor: '#111827', borderRadius: 12, padding: 16,
-    borderWidth: 1, borderColor: '#1f2937', marginBottom: 10
-  },
-  optionCardSelected: { borderColor: '#8b5cf6', backgroundColor: '#1a0f2e' },
-  optionText:   { fontSize: 15, color: '#f5f5f5', fontWeight: '500' },
-  resultContainer: { gap: 16 },
-  sourceBadge: {
-    borderRadius: 10, borderWidth: 1,
-    paddingHorizontal: 14, paddingVertical: 8, alignSelf: 'flex-start'
-  },
-  sourceText:   { fontSize: 13, fontWeight: '600' },
-  vehicleName:  { fontSize: 20, fontWeight: 'bold', color: '#f5f5f5', marginTop: 4 },
-  vehicleYear:  { fontSize: 14, color: '#6b7280' },
-  pdfSourceText:{ fontSize: 12, color: '#3b82f6', marginTop: 2 },
-  specsGrid:    { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginTop: 4 },
-  specCard: {
-    flex: 1, minWidth: '45%', backgroundColor: '#111827',
-    borderRadius: 12, padding: 14, borderWidth: 1, borderColor: '#1f2937', alignItems: 'center'
-  },
-  specValue:    { fontSize: 22, fontWeight: 'bold', color: '#f5f5f5', marginBottom: 4 },
-  specLabel:    { fontSize: 11, color: '#6b7280', textTransform: 'uppercase', letterSpacing: 0.5 },
-  reportTitle: {
-    fontSize: 12, fontWeight: '700', color: '#6b7280',
-    textTransform: 'uppercase', letterSpacing: 1, marginTop: 8
-  },
-  clearBtn:     { alignItems: 'center', paddingVertical: 12 },
-  clearText:    { color: '#8b5cf6', fontSize: 14, fontWeight: '600' }
-})
+function makeStyles(c: ThemeColors) {
+  return StyleSheet.create({
+    container:    { flex: 1, backgroundColor: c.background },
+    content:      { padding: 20, paddingTop: 60, paddingBottom: 40 },
+    pageTitle:    { fontSize: 22, fontWeight: 'bold', color: c.foreground, marginBottom: 20 },
+    form: {
+      backgroundColor: c.card, borderRadius: 16,
+      padding: 20, borderWidth: 1, borderColor: c.cardBorder,
+      marginBottom: 24, gap: 16
+    },
+    inputGroup:   { gap: 6 },
+    inputLabel:   { fontSize: 12, fontWeight: '600', color: c.muted, textTransform: 'uppercase', letterSpacing: 0.5 },
+    textInput: {
+      backgroundColor: c.background, borderRadius: 10,
+      borderWidth: 1, borderColor: c.cardBorder,
+      paddingHorizontal: 14, paddingVertical: 12,
+      color: c.foreground, fontSize: 15
+    },
+    selector: {
+      backgroundColor: c.background, borderRadius: 10,
+      borderWidth: 1, borderColor: c.cardBorder,
+      paddingHorizontal: 14, paddingVertical: 14,
+      flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between'
+    },
+    selectorText: { color: c.foreground, fontSize: 15 },
+    dropzone: {
+      borderWidth: 2, borderStyle: 'dashed', borderColor: c.cardBorder,
+      borderRadius: 12, paddingVertical: 24, alignItems: 'center', gap: 6,
+      backgroundColor: c.background
+    },
+    dropzoneTitle: { fontSize: 13, fontWeight: '600', color: c.foreground, textAlign: 'center' },
+    dropzoneSub:   { fontSize: 11, color: c.muted },
+    removeFileBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 4 },
+    removeFileText: { fontSize: 11, fontWeight: '600', color: c.muted },
+    pdfErrorText:  { fontSize: 11, color: '#ef4444' },
+    btn: {
+      backgroundColor: c.primary, borderRadius: 12,
+      paddingVertical: 14, flexDirection: 'row',
+      alignItems: 'center', justifyContent: 'center', gap: 8, marginTop: 4
+    },
+    btnDisabled:  { opacity: 0.6 },
+    btnText:      { color: c.primaryForeground, fontSize: 15, fontWeight: '700' },
+    loadingHint:  { textAlign: 'center', color: c.muted, fontSize: 12, marginTop: -8 },
+    errorText:    { color: '#ef4444', fontSize: 13 },
+    backBtn:      { marginBottom: 20 },
+    backText:     { color: c.accent, fontSize: 16, fontWeight: '600' },
+    optionCard: {
+      backgroundColor: c.card, borderRadius: 12, padding: 16,
+      borderWidth: 1, borderColor: c.cardBorder, marginBottom: 10
+    },
+    optionCardSelected: { borderColor: c.primary, backgroundColor: `${c.primary}20` },
+    optionText:   { fontSize: 15, color: c.foreground, fontWeight: '500' },
+    placeholder: {
+      borderWidth: 2, borderStyle: 'dashed', borderColor: c.cardBorder,
+      borderRadius: 16, paddingVertical: 60, alignItems: 'center', paddingHorizontal: 24
+    },
+    placeholderText: { color: c.muted, fontSize: 13, textAlign: 'center' },
+    resultContainer: { gap: 16 },
+    resultHeader: { flexDirection: 'row', alignItems: 'center', gap: 14 },
+    vehicleBrand: { fontSize: 12, fontWeight: '600', color: c.muted },
+    vehicleName:  { fontSize: 20, fontWeight: 'bold', color: c.foreground, marginTop: 2 },
+    vehicleYear:  { fontSize: 13, color: c.muted, marginTop: 2 },
+    sourceBadge: {
+      borderRadius: 10, borderWidth: 1,
+      paddingHorizontal: 14, paddingVertical: 8, alignSelf: 'flex-start'
+    },
+    sourceText:   { fontSize: 12, fontWeight: '600' },
+    specsGrid:    { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+    specCard: {
+      flex: 1, minWidth: '45%', backgroundColor: c.card,
+      borderRadius: 12, paddingVertical: 18, paddingHorizontal: 16,
+      borderWidth: 1, borderColor: c.cardBorder, alignItems: 'center'
+    },
+    specValue:    { fontSize: 22, fontWeight: 'bold', color: c.foreground, marginBottom: 4 },
+    specLabel:    { fontSize: 11, color: c.muted, textTransform: 'uppercase', letterSpacing: 0.5 },
+    reportTitle: {
+      fontSize: 12, fontWeight: '700', color: c.muted,
+      textTransform: 'uppercase', letterSpacing: 1, marginTop: 8
+    },
+    clearBtn:     { alignItems: 'center', paddingVertical: 12 },
+    clearText:    { color: c.accent, fontSize: 14, fontWeight: '600' }
+  })
+}

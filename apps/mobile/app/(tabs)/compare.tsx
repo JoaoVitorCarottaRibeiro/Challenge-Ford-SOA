@@ -1,12 +1,13 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import {
   View, Text, ScrollView, StyleSheet,
   TouchableOpacity, ActivityIndicator
 } from 'react-native'
-import { ChevronDown } from 'lucide-react-native'
+import { ChevronDown, X } from 'lucide-react-native'
 import api from '@/services/api'
 import SpecReport from '@/components/SpecReport'
 import { HERO_FIELDS, formatSpecValue } from '@/constants/specCategories'
+import { useTheme, ThemeColors } from '@/contexts/ThemeContext'
 
 interface Vehicle {
   id: string
@@ -22,6 +23,9 @@ function vehicleLabel(v: Vehicle) {
 }
 
 export default function CompareScreen() {
+  const { colors } = useTheme()
+  const styles = useMemo(() => makeStyles(colors), [colors])
+
   const [vehicles, setVehicles] = useState<Vehicle[]>([])
   const [loading,  setLoading]  = useState(true)
   const [vehicleA, setVehicleA] = useState<Vehicle | null>(null)
@@ -75,17 +79,25 @@ export default function CompareScreen() {
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      <Text style={styles.pageTitle}>Comparativo</Text>
+      <View style={styles.titleRow}>
+        <Text style={styles.pageTitle}>Comparativo</Text>
+        {(vehicleA || vehicleB) && (
+          <TouchableOpacity onPress={() => { setVehicleA(null); setVehicleB(null) }} style={styles.clearSelectionBtn}>
+            <X color={colors.muted} size={12} />
+            <Text style={styles.clearSelectionText}>Limpar seleção</Text>
+          </TouchableOpacity>
+        )}
+      </View>
 
       <View style={styles.selectors}>
         <TouchableOpacity
-          style={[styles.selectorBtn, { borderColor: '#3b82f6' }]}
+          style={[styles.selectorBtn, { borderColor: colors.accent }]}
           onPress={() => setPicking('A')}>
           <Text style={styles.selectorLabel}>Veículo A</Text>
           <Text style={styles.selectorValue} numberOfLines={2}>
             {vehicleA ? vehicleLabel(vehicleA) : 'Selecionar'}
           </Text>
-          <ChevronDown color="#6b7280" size={14} />
+          <ChevronDown color={colors.muted} size={14} />
         </TouchableOpacity>
 
         <View style={styles.vsContainer}>
@@ -93,17 +105,17 @@ export default function CompareScreen() {
         </View>
 
         <TouchableOpacity
-          style={[styles.selectorBtn, { borderColor: '#8b5cf6' }]}
+          style={[styles.selectorBtn, { borderColor: colors.accent }]}
           onPress={() => setPicking('B')}>
           <Text style={styles.selectorLabel}>Veículo B</Text>
           <Text style={styles.selectorValue} numberOfLines={2}>
             {vehicleB ? vehicleLabel(vehicleB) : 'Selecionar'}
           </Text>
-          <ChevronDown color="#6b7280" size={14} />
+          <ChevronDown color={colors.muted} size={14} />
         </TouchableOpacity>
       </View>
 
-      {loading && <ActivityIndicator color="#3b82f6" style={{ marginTop: 40 }} />}
+      {loading && <ActivityIndicator color={colors.accent} style={{ marginTop: 40 }} />}
 
       {vehicleA && vehicleB && (
         <>
@@ -134,7 +146,6 @@ export default function CompareScreen() {
 
       {!vehicleA && !vehicleB && !loading && (
         <View style={styles.emptyState}>
-          <Text style={styles.emptyIcon}>⚖️</Text>
           <Text style={styles.emptyTitle}>Compare dois veículos</Text>
           <Text style={styles.emptySub}>
             Selecione dois veículos acima para ver o comparativo lado a lado
@@ -145,59 +156,67 @@ export default function CompareScreen() {
   )
 }
 
-const styles = StyleSheet.create({
-  container:       { flex: 1, backgroundColor: '#0a0f1e' },
-  content:         { padding: 20, paddingTop: 60, paddingBottom: 40 },
-  pageTitle:       { fontSize: 22, fontWeight: 'bold', color: '#f5f5f5', marginBottom: 20 },
-  selectors:       { flexDirection: 'row', alignItems: 'flex-start', gap: 8, marginBottom: 28 },
-  selectorBtn: {
-    flex: 1, backgroundColor: '#111827', borderRadius: 12,
-    padding: 12, borderWidth: 1.5, minHeight: 80
-  },
-  selectorLabel:   { fontSize: 11, color: '#6b7280', fontWeight: '600', marginBottom: 4 },
-  selectorValue:   { fontSize: 12, color: '#f5f5f5', fontWeight: '600', marginBottom: 6, lineHeight: 18 },
-  vsContainer:     { alignItems: 'center', justifyContent: 'center', paddingTop: 28 },
-  vs:              { fontSize: 14, fontWeight: 'bold', color: '#4b5563' },
-  sectionTitle: {
-    fontSize: 12, fontWeight: '700', color: '#6b7280',
-    textTransform: 'uppercase', letterSpacing: 1,
-    marginBottom: 10, marginTop: 20
-  },
-  table: {
-    backgroundColor: '#111827', borderRadius: 14,
-    borderWidth: 1, borderColor: '#1f2937', overflow: 'hidden'
-  },
-  tableRow: {
-    flexDirection: 'row', alignItems: 'center',
-    borderBottomWidth: 1, borderBottomColor: '#1f2937', paddingVertical: 12
-  },
-  cellText:        { flex: 1 },
-  cellLeft:        { alignItems: 'flex-end', paddingRight: 10 },
-  cellRight:       { alignItems: 'flex-start', paddingLeft: 10 },
-  normalText:      { color: '#f5f5f5', fontSize: 14, fontWeight: '500' },
-  winnerText:      { color: '#10b981', fontSize: 14, fontWeight: '700' },
-  tableLabel: {
-    width: 130, textAlign: 'center', fontSize: 11,
-    color: '#6b7280', fontWeight: '500'
-  },
-  cross:           { fontSize: 16, color: '#ef4444' },
-  backBtn:         { marginBottom: 20 },
-  backText:        { color: '#3b82f6', fontSize: 16, fontWeight: '600' },
-  pickCard: {
-    flexDirection: 'row', alignItems: 'center',
-    backgroundColor: '#111827', borderRadius: 12, padding: 16,
-    borderWidth: 1, borderColor: '#1f2937', marginBottom: 10
-  },
-  pickCardSelected: { borderColor: '#3b82f6', backgroundColor: '#0f1e3a' },
-  pickName:        { fontSize: 14, fontWeight: '600', color: '#f5f5f5' },
-  pickSub:         { fontSize: 12, color: '#6b7280', marginTop: 2 },
-  pickBadge: {
-    fontSize: 12, fontWeight: '700', color: '#3b82f6',
-    backgroundColor: '#1e3a5f', paddingHorizontal: 8,
-    paddingVertical: 3, borderRadius: 6, marginLeft: 8
-  },
-  emptyState:      { alignItems: 'center', marginTop: 60 },
-  emptyIcon:       { fontSize: 48, marginBottom: 16 },
-  emptyTitle:      { fontSize: 18, fontWeight: 'bold', color: '#f5f5f5', marginBottom: 8 },
-  emptySub:        { fontSize: 14, color: '#6b7280', textAlign: 'center', lineHeight: 20 }
-})
+function makeStyles(c: ThemeColors) {
+  return StyleSheet.create({
+    container:       { flex: 1, backgroundColor: c.background },
+    content:         { padding: 20, paddingTop: 60, paddingBottom: 40 },
+    titleRow:        { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
+    pageTitle:       { fontSize: 22, fontWeight: 'bold', color: c.foreground },
+    clearSelectionBtn: {
+      flexDirection: 'row', alignItems: 'center', gap: 5,
+      borderRadius: 8, paddingHorizontal: 10, paddingVertical: 6,
+      borderWidth: 1, borderColor: c.cardBorder, backgroundColor: c.card
+    },
+    clearSelectionText: { fontSize: 11, fontWeight: '600', color: c.muted },
+    selectors:       { flexDirection: 'row', alignItems: 'flex-start', gap: 8, marginBottom: 28 },
+    selectorBtn: {
+      flex: 1, backgroundColor: c.card, borderRadius: 12,
+      padding: 12, borderWidth: 1.5, minHeight: 80
+    },
+    selectorLabel:   { fontSize: 11, color: c.muted, fontWeight: '600', marginBottom: 4 },
+    selectorValue:   { fontSize: 12, color: c.foreground, fontWeight: '600', marginBottom: 6, lineHeight: 18 },
+    vsContainer:     { alignItems: 'center', justifyContent: 'center', paddingTop: 28 },
+    vs:              { fontSize: 14, fontWeight: 'bold', color: c.muted },
+    sectionTitle: {
+      fontSize: 12, fontWeight: '700', color: c.muted,
+      textTransform: 'uppercase', letterSpacing: 1,
+      marginBottom: 10, marginTop: 20
+    },
+    table: {
+      backgroundColor: c.card, borderRadius: 14,
+      borderWidth: 1, borderColor: c.cardBorder, overflow: 'hidden'
+    },
+    tableRow: {
+      flexDirection: 'row', alignItems: 'center',
+      borderBottomWidth: 1, borderBottomColor: c.cardBorder,
+      paddingVertical: 12, paddingHorizontal: 16
+    },
+    cellText:        { flex: 1 },
+    cellLeft:        { alignItems: 'flex-end', paddingRight: 10 },
+    cellRight:       { alignItems: 'flex-start', paddingLeft: 10 },
+    normalText:      { color: c.foreground, fontSize: 14, fontWeight: '500' },
+    winnerText:      { color: '#10b981', fontSize: 14, fontWeight: '700' },
+    tableLabel: {
+      width: 130, textAlign: 'center', fontSize: 11,
+      color: c.muted, fontWeight: '500'
+    },
+    backBtn:         { marginBottom: 20 },
+    backText:        { color: c.accent, fontSize: 16, fontWeight: '600' },
+    pickCard: {
+      flexDirection: 'row', alignItems: 'center',
+      backgroundColor: c.card, borderRadius: 12, padding: 16,
+      borderWidth: 1, borderColor: c.cardBorder, marginBottom: 10
+    },
+    pickCardSelected: { borderColor: c.accent, backgroundColor: `${c.accent}20` },
+    pickName:        { fontSize: 14, fontWeight: '600', color: c.foreground },
+    pickSub:         { fontSize: 12, color: c.muted, marginTop: 2 },
+    pickBadge: {
+      fontSize: 12, fontWeight: '700', color: c.accent,
+      backgroundColor: c.background, paddingHorizontal: 8,
+      paddingVertical: 3, borderRadius: 6, marginLeft: 8
+    },
+    emptyState:      { alignItems: 'center', marginTop: 60 },
+    emptyTitle:      { fontSize: 18, fontWeight: 'bold', color: c.foreground, marginBottom: 8 },
+    emptySub:        { fontSize: 14, color: c.muted, textAlign: 'center', lineHeight: 20 }
+  })
+}

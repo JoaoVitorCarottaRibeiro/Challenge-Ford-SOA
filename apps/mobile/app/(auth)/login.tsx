@@ -1,17 +1,20 @@
 import { useState } from 'react'
 import {
-  View, Text, TextInput, TouchableOpacity,
-  StyleSheet, ActivityIndicator, KeyboardAvoidingView, Platform
+  View, Text, TextInput, TouchableOpacity, Image,
+  StyleSheet, KeyboardAvoidingView, ScrollView, Platform
 } from 'react-native'
+import { LinearGradient } from 'expo-linear-gradient'
+import { Eye, EyeOff, ShieldCheck } from 'lucide-react-native'
 import { router } from 'expo-router'
 import { storage } from '@/services/api'
 import api from '@/services/api'
 
 export default function LoginScreen() {
-  const [email,    setEmail]    = useState('')
-  const [password, setPassword] = useState('')
-  const [loading,  setLoading]  = useState(false)
-  const [error,    setError]    = useState('')
+  const [email,        setEmail]        = useState('')
+  const [password,     setPassword]     = useState('')
+  const [showPassword, setShowPassword] = useState(false)
+  const [loading,      setLoading]      = useState(false)
+  const [error,        setError]        = useState('')
 
   async function handleLogin() {
     setError('')
@@ -38,41 +41,60 @@ export default function LoginScreen() {
   }
 
   return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
-      <View style={styles.content}>
-        <View style={styles.logo}>
-          <Text style={styles.logoIcon}>🚗</Text>
-        </View>
-        <Text style={styles.title}>Ford Pickup Intel</Text>
-        <Text style={styles.subtitle}>Inteligência Competitiva Automotiva</Text>
+    <View style={styles.container}>
+      <LinearGradient
+        colors={['#0b1830', '#16264d', '#1F3A6E']}
+        locations={[0, 0.55, 1]}
+        style={styles.hero}>
+        <Image source={require('../../assets/fordiq-logo.png')} style={styles.logo} resizeMode="contain" />
+        <Text style={styles.tagline}>
+          Especificações técnicas padronizadas de toda a concorrência, em um só lugar.
+        </Text>
+      </LinearGradient>
 
-        <View style={styles.form}>
-          <Text style={styles.label}>Email</Text>
-          <TextInput
-            style={[styles.input, error ? styles.inputError : null]}
-            value={email}
-            onChangeText={t => { setEmail(t); setError('') }}
-            placeholder="seu@email.com"
-            placeholderTextColor="#4b5563"
-            keyboardType="email-address"
-            autoCapitalize="none"
-          />
+      <KeyboardAvoidingView
+        style={styles.sheetWrapper}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        <ScrollView contentContainerStyle={styles.sheet} keyboardShouldPersistTaps="handled">
+          <Text style={styles.title}>Bem-vindo(a)</Text>
+          <Text style={styles.subtitle}>Inteligência Competitiva Automotiva</Text>
 
-          <Text style={styles.label}>Senha</Text>
-          <TextInput
-            style={[styles.input, error ? styles.inputError : null]}
-            value={password}
-            onChangeText={t => { setPassword(t); setError('') }}
-            placeholder="••••••••"
-            placeholderTextColor="#4b5563"
-            secureTextEntry
-          />
+          <View style={styles.fieldBox}>
+            <Text style={styles.fieldLabel}>Email</Text>
+            <TextInput
+              style={styles.fieldInput}
+              value={email}
+              onChangeText={t => { setEmail(t); setError('') }}
+              placeholder="seu@email.com"
+              placeholderTextColor="#a3a3a3"
+              keyboardType="email-address"
+              autoCapitalize="none"
+            />
+          </View>
+
+          <View style={styles.fieldBox}>
+            <Text style={styles.fieldLabel}>Senha</Text>
+            <View style={styles.fieldRow}>
+              <TextInput
+                style={[styles.fieldInput, styles.fieldInputFlex]}
+                value={password}
+                onChangeText={t => { setPassword(t); setError('') }}
+                placeholder="••••••••"
+                placeholderTextColor="#a3a3a3"
+                secureTextEntry={!showPassword}
+              />
+              <TouchableOpacity onPress={() => setShowPassword(v => !v)} hitSlop={8}>
+                {showPassword
+                  ? <EyeOff size={16} color="#a3a3a3" />
+                  : <Eye size={16} color="#a3a3a3" />
+                }
+              </TouchableOpacity>
+            </View>
+          </View>
 
           {error ? (
             <View style={styles.errorBox}>
-              <Text style={styles.errorText}>⚠ {error}</Text>
+              <Text style={styles.errorText}>{error}</Text>
             </View>
           ) : null}
 
@@ -80,51 +102,63 @@ export default function LoginScreen() {
             style={[styles.button, loading && styles.buttonDisabled]}
             onPress={handleLogin}
             disabled={loading}>
-            {loading
-              ? <ActivityIndicator color="#fff" />
-              : <Text style={styles.buttonText}>Entrar</Text>
-            }
+            <Text style={styles.buttonText}>{loading ? 'Entrando...' : 'Continuar'}</Text>
           </TouchableOpacity>
-        </View>
 
-        <Text style={styles.footer}>Ford Pickup Intel © 2025 — FIAP</Text>
-      </View>
-    </KeyboardAvoidingView>
+          <View style={styles.secureRow}>
+            <ShieldCheck size={14} color="#737373" />
+            <Text style={styles.secureText}>Ambiente Seguro</Text>
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </View>
   )
 }
 
 const styles = StyleSheet.create({
-  container:       { flex: 1, backgroundColor: '#0a0f1e' },
-  content:         { flex: 1, justifyContent: 'center', padding: 24 },
-  logo: {
-    width: 72, height: 72, borderRadius: 20,
-    backgroundColor: '#1F3A6E', alignItems: 'center',
-    justifyContent: 'center', alignSelf: 'center', marginBottom: 16
+  container:  { flex: 1, backgroundColor: '#ffffff' },
+  hero: {
+    height: 280, alignItems: 'center', justifyContent: 'center', padding: 32
   },
-  logoIcon:        { fontSize: 32 },
-  title:           { fontSize: 26, fontWeight: 'bold', color: '#f5f5f5', textAlign: 'center' },
-  subtitle:        { fontSize: 14, color: '#6b7280', textAlign: 'center', marginBottom: 40 },
-  form: {
-    backgroundColor: '#111827', borderRadius: 16,
-    padding: 20, borderWidth: 1, borderColor: '#1f2937'
+  logo:       { width: 200, height: 78, marginBottom: 20 },
+  tagline:    { fontSize: 13, color: 'rgba(255,255,255,0.6)', textAlign: 'center', maxWidth: 280 },
+
+  sheetWrapper: { flex: 1 },
+  sheet: {
+    flexGrow: 1, backgroundColor: '#ffffff',
+    borderTopLeftRadius: 28, borderTopRightRadius: 28,
+    marginTop: -24, padding: 28, paddingTop: 36
   },
-  label:           { fontSize: 13, fontWeight: '600', color: '#d1d5db', marginBottom: 6 },
-  input: {
-    backgroundColor: '#0a0f1e', borderRadius: 10, borderWidth: 1,
-    borderColor: '#1f2937', color: '#f5f5f5', padding: 12,
-    fontSize: 14, marginBottom: 16
+
+  title:      { fontSize: 26, fontWeight: '400', color: '#171717' },
+  subtitle:   { fontSize: 14, color: '#737373', marginBottom: 32 },
+
+  fieldBox: {
+    backgroundColor: '#f5f5f5', borderRadius: 10,
+    paddingHorizontal: 16, paddingTop: 10, paddingBottom: 8,
+    marginBottom: 14
   },
-  inputError:      { borderColor: '#ef4444' },
+  fieldLabel: { fontSize: 11, fontWeight: '600', color: '#1d4ed8', marginBottom: 2 },
+  fieldRow:   { flexDirection: 'row', alignItems: 'center' },
+  fieldInput: { fontSize: 14, color: '#171717', paddingVertical: 2 },
+  fieldInputFlex: { flex: 1 },
+
   errorBox: {
-    backgroundColor: '#ef444420', borderRadius: 8, borderWidth: 1,
-    borderColor: '#ef4444', padding: 10, marginBottom: 12
+    backgroundColor: '#fef2f2', borderRadius: 10,
+    paddingHorizontal: 14, paddingVertical: 10, marginBottom: 14
   },
-  errorText:       { color: '#ef4444', fontSize: 13, fontWeight: '500' },
+  errorText:  { color: '#dc2626', fontSize: 13 },
+
   button: {
     backgroundColor: '#1F3A6E', borderRadius: 10,
-    padding: 14, alignItems: 'center', marginTop: 4
+    paddingVertical: 14, alignItems: 'center', marginTop: 4
   },
-  buttonDisabled:  { opacity: 0.6 },
-  buttonText:      { color: '#fff', fontWeight: '700', fontSize: 15 },
-  footer:          { textAlign: 'center', color: '#374151', fontSize: 12, marginTop: 32 }
+  buttonDisabled: { opacity: 0.6 },
+  buttonText: { color: '#fff', fontWeight: '700', fontSize: 15 },
+
+  secureRow: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+    gap: 6, marginTop: 28
+  },
+  secureText: { fontSize: 12, fontWeight: '500', color: '#737373' }
 })

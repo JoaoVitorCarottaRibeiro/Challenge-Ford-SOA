@@ -1,18 +1,21 @@
 import { Tabs } from 'expo-router'
 import { LayoutDashboard, Car, GitCompare, Sparkles } from 'lucide-react-native'
+import { useTheme } from '@/contexts/ThemeContext'
 
 export default function TabsLayout() {
+  const { colors } = useTheme()
+
   return (
     <Tabs screenOptions={{
       headerShown: false,
       tabBarStyle: {
-        backgroundColor: '#111827',
-        borderTopColor: '#1f2937',
+        backgroundColor: colors.card,
+        borderTopColor: colors.cardBorder,
         paddingBottom: 8,
         height: 60
       },
-      tabBarActiveTintColor: '#3b82f6',
-      tabBarInactiveTintColor: '#6b7280',
+      tabBarActiveTintColor: colors.accent,
+      tabBarInactiveTintColor: colors.muted,
       tabBarLabelStyle: { fontSize: 11, fontWeight: '600' }
     }}>
       <Tabs.Screen name="index" options={{

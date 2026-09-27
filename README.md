@@ -42,7 +42,7 @@ fordiq/
 ├── apps/
 │   ├── api/          # Backend — Node.js + TypeScript + Fastify
 │   ├── web/          # Frontend web — Next.js + Tailwind (a entrega principal do desafio)
-│   └── mobile/       # Scaffold Expo/React Native, não faz parte da entrega atual
+│   └── mobile/       # App mobile — Expo + React Native (ver apps/mobile/README.md)
 ├── packages/
 │   └── database/     # Entidades TypeORM + conexão Oracle, compartilhado entre api e web
 ├── pnpm-workspace.yaml

@@ -2,10 +2,11 @@ import { useEffect, useState } from 'react'
 import { Stack, useRouter } from 'expo-router'
 import { StatusBar } from 'expo-status-bar'
 import { storage } from '@/services/api'
+import { ThemeProvider, useTheme } from '@/contexts/ThemeContext'
 
-export default function RootLayout() {
+function RootNavigator() {
   const router = useRouter()
-  const [ready, setReady] = useState(false)
+  const { mode } = useTheme()
 
   useEffect(() => {
     async function checkAuth() {
@@ -13,7 +14,6 @@ export default function RootLayout() {
       if (!token) {
         router.replace('/(auth)/login')
       }
-      setReady(true)
     }
 
     const timer = setTimeout(checkAuth, 50)
@@ -22,11 +22,19 @@ export default function RootLayout() {
 
   return (
     <>
-      <StatusBar style="light" />
+      <StatusBar style={mode === 'light' ? 'dark' : 'light'} />
       <Stack screenOptions={{ headerShown: false }}>
         <Stack.Screen name="(auth)" />
         <Stack.Screen name="(tabs)" />
       </Stack>
     </>
+  )
+}
+
+export default function RootLayout() {
+  return (
+    <ThemeProvider>
+      <RootNavigator />
+    </ThemeProvider>
   )
 }

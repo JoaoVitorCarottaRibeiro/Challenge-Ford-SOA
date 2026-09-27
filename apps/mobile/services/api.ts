@@ -1,8 +1,8 @@
 import axios from 'axios'
 import { Platform } from 'react-native'
 
-const API_URL = 'https://fordchallenge-docar.onrender.com/api'
-const HMAC_SECRET = 'ford-intel-hmac-secret-2025'
+const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3333/api'
+const HMAC_SECRET = process.env.EXPO_PUBLIC_HMAC_SECRET || ''
 
 async function generateHmac(body: string): Promise<string> {
   const encoder = new TextEncoder()
@@ -65,7 +65,10 @@ api.interceptors.request.use(async (config) => {
 api.interceptors.response.use(
   (response) => response,
   async (error) => {
-    if (error.response?.status === 401) {
+    const url: string = error.config?.url || ''
+    const isAuthEndpoint = url.includes('/auth/login') || url.includes('/auth/refresh')
+
+    if (error.response?.status === 401 && !isAuthEndpoint) {
       const refreshToken = await storage.get('refresh_token')
       if (refreshToken) {
         try {

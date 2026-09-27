@@ -1,23 +1,28 @@
 {
   "expo": {
-    "name": "Ford Pickup Intel",
-    "slug": "ford-pickup-intel",
+    "name": "Fordiq",
+    "slug": "fordiq",
     "version": "1.0.0",
     "orientation": "portrait",
-    "scheme": "fordpickupintel",
+    "icon": "./assets/icon.png",
+    "scheme": "fordiq",
     "userInterfaceStyle": "automatic",
     "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
       "backgroundColor": "#0a0f1e"
     },
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "com.fiap.fordpickupintel"
+      "bundleIdentifier": "com.fiap.fordiq"
     },
     "android": {
       "adaptiveIcon": {
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png",
         "backgroundColor": "#0a0f1e"
       },
-      "package": "com.fiap.fordpickupintel"
+      "package": "com.fiap.fordiq"
     },
     "plugins": [
       "expo-router",

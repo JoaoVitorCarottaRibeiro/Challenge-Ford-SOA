@@ -1,7 +1,8 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native'
 import { ChevronDown, ChevronUp, Check } from 'lucide-react-native'
 import { SPEC_CATEGORIES, formatSpecValue, SpecField } from '@/constants/specCategories'
+import { useTheme, ThemeColors } from '@/contexts/ThemeContext'
 
 type Spec = Record<string, unknown> | null | undefined
 
@@ -40,6 +41,9 @@ function getBetter(field: SpecField, a: unknown, b: unknown): 'A' | 'B' | null {
 }
 
 export default function SpecReport({ spec, specB, defaultOpenFirst = true }: Props) {
+  const { colors } = useTheme()
+  const styles = useMemo(() => makeStyles(colors), [colors])
+
   const isCompare = specB !== undefined
   const [openCategory, setOpenCategory] = useState<string | null>(
     defaultOpenFirst ? SPEC_CATEGORIES[0].name : null
@@ -68,7 +72,7 @@ export default function SpecReport({ spec, specB, defaultOpenFirst = true }: Pro
                 <Text style={styles.categoryCount}>
                   {isCompare ? `${filledA}/${category.fields.length} · ${filledB}/${category.fields.length}` : `${filledA}/${category.fields.length}`}
                 </Text>
-                {isOpen ? <ChevronUp color="#6b7280" size={16} /> : <ChevronDown color="#6b7280" size={16} />}
+                {isOpen ? <ChevronUp color={colors.muted} size={16} /> : <ChevronDown color={colors.muted} size={16} />}
               </View>
             </TouchableOpacity>
 
@@ -100,7 +104,7 @@ export default function SpecReport({ spec, specB, defaultOpenFirst = true }: Pro
                       <View style={[styles.compareCell, styles.compareCellLeft]}>
                         {field.type === 'bool' ? (
                           isTruthy(aVal)
-                            ? <Check color={better === 'A' ? '#10b981' : '#9ca3af'} size={16} />
+                            ? <Check color={better === 'A' ? '#10b981' : colors.muted} size={16} />
                             : <Text style={styles.cross}>{isFilled(aVal) ? '✗' : '—'}</Text>
                         ) : (
                           <Text style={[styles.compareValue, better === 'A' && styles.winnerText]}>
@@ -112,7 +116,7 @@ export default function SpecReport({ spec, specB, defaultOpenFirst = true }: Pro
                       <View style={[styles.compareCell, styles.compareCellRight]}>
                         {field.type === 'bool' ? (
                           isTruthy(bVal)
-                            ? <Check color={better === 'B' ? '#10b981' : '#9ca3af'} size={16} />
+                            ? <Check color={better === 'B' ? '#10b981' : colors.muted} size={16} />
                             : <Text style={styles.cross}>{isFilled(bVal) ? '✗' : '—'}</Text>
                         ) : (
                           <Text style={[styles.compareValue, better === 'B' && styles.winnerText]}>
@@ -132,40 +136,42 @@ export default function SpecReport({ spec, specB, defaultOpenFirst = true }: Pro
   )
 }
 
-const styles = StyleSheet.create({
-  container:  { gap: 10 },
-  empty:      { color: '#6b7280', textAlign: 'center', marginTop: 20 },
-  categoryCard: {
-    backgroundColor: '#111827', borderRadius: 14,
-    borderWidth: 1, borderColor: '#1f2937', overflow: 'hidden'
-  },
-  categoryHeader: {
-    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-    paddingHorizontal: 16, paddingVertical: 14
-  },
-  categoryHeaderRight: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  categoryTitle: { fontSize: 13, fontWeight: '700', color: '#f5f5f5' },
-  categoryCount: { fontSize: 11, color: '#6b7280', fontWeight: '600' },
-  fieldsList: { borderTopWidth: 1, borderTopColor: '#1f2937' },
-  fieldRow: {
-    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-    paddingHorizontal: 16, paddingVertical: 10,
-    borderBottomWidth: 1, borderBottomColor: '#1a2333'
-  },
-  fieldLabel: { fontSize: 13, color: '#9ca3af', flex: 1, paddingRight: 10 },
-  fieldValue: { fontSize: 13, fontWeight: '600', color: '#f5f5f5' },
-  cross:      { fontSize: 14, color: '#ef4444' },
-  compareRow: {
-    flexDirection: 'row', alignItems: 'center',
-    paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#1a2333'
-  },
-  compareCell:     { flex: 1, alignItems: 'center' },
-  compareCellLeft: { alignItems: 'flex-end', paddingRight: 10 },
-  compareCellRight:{ alignItems: 'flex-start', paddingLeft: 10 },
-  compareValue:    { fontSize: 12, color: '#f5f5f5', fontWeight: '500' },
-  winnerText:      { color: '#10b981', fontWeight: '700' },
-  compareLabel: {
-    width: 140, textAlign: 'center', fontSize: 10.5,
-    color: '#6b7280', fontWeight: '500', paddingHorizontal: 4
-  },
-})
+function makeStyles(c: ThemeColors) {
+  return StyleSheet.create({
+    container:  { gap: 10 },
+    empty:      { color: c.muted, textAlign: 'center', marginTop: 20 },
+    categoryCard: {
+      backgroundColor: c.card, borderRadius: 14,
+      borderWidth: 1, borderColor: c.cardBorder, overflow: 'hidden'
+    },
+    categoryHeader: {
+      flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+      paddingHorizontal: 16, paddingVertical: 14
+    },
+    categoryHeaderRight: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+    categoryTitle: { fontSize: 13, fontWeight: '700', color: c.foreground },
+    categoryCount: { fontSize: 11, color: c.muted, fontWeight: '600' },
+    fieldsList: { borderTopWidth: 1, borderTopColor: c.cardBorder },
+    fieldRow: {
+      flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+      paddingHorizontal: 16, paddingVertical: 10,
+      borderBottomWidth: 1, borderBottomColor: c.cardBorder
+    },
+    fieldLabel: { fontSize: 13, color: c.muted, flex: 1, paddingRight: 10 },
+    fieldValue: { fontSize: 13, fontWeight: '600', color: c.foreground },
+    cross:      { fontSize: 14, color: '#ef4444' },
+    compareRow: {
+      flexDirection: 'row', alignItems: 'center',
+      paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: c.cardBorder
+    },
+    compareCell:     { flex: 1, alignItems: 'center' },
+    compareCellLeft: { alignItems: 'flex-end', paddingRight: 10 },
+    compareCellRight:{ alignItems: 'flex-start', paddingLeft: 10 },
+    compareValue:    { fontSize: 12, color: c.foreground, fontWeight: '500' },
+    winnerText:      { color: '#10b981', fontWeight: '700' },
+    compareLabel: {
+      width: 140, textAlign: 'center', fontSize: 10.5,
+      color: c.muted, fontWeight: '500', paddingHorizontal: 4
+    },
+  })
+}
