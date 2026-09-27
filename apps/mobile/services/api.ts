@@ -1,19 +1,16 @@
 import axios from 'axios'
 import { Platform } from 'react-native'
+import { HmacSHA256, enc } from 'crypto-js'
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3333/api'
 const HMAC_SECRET = process.env.EXPO_PUBLIC_HMAC_SECRET || ''
 
-async function generateHmac(body: string): Promise<string> {
-  const encoder = new TextEncoder()
-  const keyData = encoder.encode(HMAC_SECRET)
-  const messageData = encoder.encode(body)
-  const key = await crypto.subtle.importKey(
-    'raw', keyData, { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']
-  )
-  const signature = await crypto.subtle.sign('HMAC', key, messageData)
-  const hashArray = Array.from(new Uint8Array(signature))
-  return 'sha256=' + hashArray.map(b => b.toString(16).padStart(2, '0')).join('')
+// crypto-js é uma implementação pura em JS (sem bindings nativos) — a Web
+// Crypto API (`crypto.subtle`) usada antes funciona em navegador/`expo start
+// --web`, mas não existe no runtime nativo (Hermes), quebrando o HMAC (e por
+// tabela o login) em qualquer build real gerado pelo EAS.
+function generateHmac(body: string): string {
+  return 'sha256=' + HmacSHA256(body, HMAC_SECRET).toString(enc.Hex)
 }
 
 /**
@@ -55,8 +52,7 @@ api.interceptors.request.use(async (config) => {
 
   if (config.data && ['post', 'put', 'patch'].includes(config.method || '')) {
     const body = JSON.stringify(config.data)
-    const signature = await generateHmac(body)
-    config.headers['X-Signature'] = signature
+    config.headers['X-Signature'] = generateHmac(body)
   }
 
   return config

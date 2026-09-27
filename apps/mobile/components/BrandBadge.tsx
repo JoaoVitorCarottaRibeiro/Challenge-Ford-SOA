@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { View, Text, Image, StyleSheet } from 'react-native'
+import { SvgUri } from 'react-native-svg'
 
 const BRAND_COLORS: Record<string, string> = {
   ford: '1F3A6E', toyota: 'CC0000', mitsubishi: 'E60012', volkswagen: '001E50', chevrolet: 'CC0000', ram: '5B2A86',
@@ -40,12 +41,24 @@ export function BrandBadge({ brand, size = 40 }: { brand: string; size?: number 
 
   return (
     <View style={[styles.wrap, { width: size, height: size, borderRadius: size * 0.3 }]}>
-      <Image
-        source={localLogo || { uri: `https://cdn.simpleicons.org/${slug}/${color.replace('#', '')}` }}
-        style={{ width: imgSize, height: imgSize }}
-        resizeMode="contain"
-        onError={() => setFailed(true)}
-      />
+      {localLogo ? (
+        <Image
+          source={localLogo}
+          style={{ width: imgSize, height: imgSize }}
+          resizeMode="contain"
+          onError={() => setFailed(true)}
+        />
+      ) : (
+        // O CDN do Simple Icons serve SVG — o <Image> nativo do RN (Android/iOS)
+        // não decodifica SVG (só funciona no web, onde vira uma <img> de verdade).
+        // Precisa do SvgUri, que faz o parse do SVG remoto de verdade.
+        <SvgUri
+          uri={`https://cdn.simpleicons.org/${slug}/${color.replace('#', '')}`}
+          width={imgSize}
+          height={imgSize}
+          onError={() => setFailed(true)}
+        />
+      )}
     </View>
   )
 }

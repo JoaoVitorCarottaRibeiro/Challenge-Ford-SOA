@@ -54,12 +54,9 @@ Isso é uma correção de pipeline, não um remendo pontual — vale para qualqu
 
 O `/extract` só reconhece um veículo já existente se `brand + model + version + yearModel` baterem **exatamente**. Uma pequena variação de nome/ano (ex.: "Shark" vs "Shark 6", 2026 vs 2027) cria um **veículo novo duplicado** em vez de atualizar o existente — foi o que aconteceu com um teste que criou "BYD Shark 6 GS 2027" ao lado do "BYD Shark GS 2026" original (specs idênticos). Removido via `DELETE /vehicles/:id`. Se o catálogo mostrar mais veículos do que o esperado, suspeitar disso primeiro — puxar `GET /vehicles` e comparar brand/model/version/yearModel manualmente.
 
-## O gatekeeper escondido do `GET /vehicles`
+## `GET /vehicles` — removido o filtro escondido por `potenciaCv`
 
-```ts
-const withSpecs = all.filter(v => v.spec !== null && v.spec.potenciaCv !== null)
-```
-Um veículo só aparece nas listagens se **o campo potência especificamente** estiver preenchido — não documentado em nenhum lugar, é só uma linha de filtro. Se cadastrar algo manualmente e esquecer de preencher `potenciaCv`, o registro fica invisível (mas existe no banco).
+Até set/2026, um veículo só aparecia nas listagens se o campo **potência** estivesse especificamente preenchido (`v.spec.potenciaCv !== null`) — um filtro não documentado em lugar nenhum. Isso causava um problema real: extrações via `web_scraping` (sem PDF) que não conseguiam confirmar a potência ficavam com o registro **invisível** em Veículos/gráfico FIPE mesmo tendo uma ficha técnica completa salva no banco, dando a impressão de que o cadastro nunca tinha acontecido. Removido — agora `GET /vehicles` mostra qualquer veículo que tenha `spec` cadastrado, independente de quais campos específicos vieram preenchidos (`apps/api/src/routes/vehicles.ts`).
 
 ## Catálogo atual (10 veículos, todos com fonte real, sem duplicatas)
 

@@ -235,13 +235,13 @@ export async function vehicleRoutes(app: FastifyInstance) {
     schema: {
       tags: ['Vehicles'],
       summary: 'Listar veículos do catálogo',
-      description: 'Só retorna veículos com spec cadastrado e potenciaCv preenchido.',
+      description: 'Só retorna veículos com spec cadastrado (não exige nenhum campo específico preenchido).',
       security: [{ bearerAuth: [] }]
     }
   }, async (req: AuthenticatedRequest, reply) => {
     await logAudit('list_vehicles', req, 'success')
     const all = await vehicleRepo.find({ relations: ['spec', 'segment'] })
-    const withSpecs = all.filter(v => v.spec !== null && v.spec.potenciaCv !== null)
+    const withSpecs = all.filter(v => v.spec !== null)
     const seen = new Set<string>()
     const unique = withSpecs.filter(v => {
       const key = `${v.brand.toLowerCase()}-${v.model.toLowerCase()}-${v.version.toLowerCase()}-${v.yearModel}`
